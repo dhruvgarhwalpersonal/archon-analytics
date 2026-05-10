@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARCHON Analytics</title>
+<link rel="icon" type="image/png" href="icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#08080f;--bg2:#0f0f1a;--bg3:#141420;--bg4:#1a1a2a;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.11);
+  --text:#e4e4f0;--text2:#9898b8;--text3:#4a4a6a;
+  --accent:#7c6fff;--green:#3fcf8e;--amber:#f5a623;--red:#ff5c5c;--purple:#a78bfa;--teal:#00d4aa;--rose:#f43f5e;
+  --control:#3a5068;--influence:#6b1a1a;--human:#2d1f4a;--power:#2a2000;--truth:#0f2a0f;
+  --font:'Poppins',sans-serif;--mono:'DM Mono',monospace;
+  --sidebar:220px;--header:56px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:8px;}
+
+/* LAYOUT */
+#app{display:flex;height:100vh;}
+#sidebar{width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+#header{height:var(--header);background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0;}
+#content{flex:1;overflow-y:auto;padding:24px;}
+
+/* SIDEBAR */
+#sidebar-logo{padding:20px 16px 12px;border-bottom:1px solid var(--border);}
+#sidebar-logo .logo-name{font-size:18px;font-weight:900;color:var(--text);letter-spacing:.05em;}
+#sidebar-logo .logo-sub{font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-top:2px;}
+#sidebar-nav{flex:1;padding:12px 8px;overflow-y:auto;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text2);transition:all .15s;margin-bottom:2px;border:1px solid transparent;}
+.nav-item:hover{background:var(--bg3);color:var(--text);}
+.nav-item.active{background:rgba(124,111,255,0.12);color:var(--accent);border-color:rgba(124,111,255,0.2);}
+.nav-item .nav-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0;}
+#sidebar-bottom{padding:12px;border-top:1px solid var(--border);}
+.followers-badge{background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:12px;text-align:center;}
+.followers-badge .fb-num{font-size:24px;font-weight:900;color:var(--green);font-family:var(--mono);}
+.followers-badge .fb-lbl{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-top:2px;}
+.followers-badge .fb-delta{font-size:10px;font-weight:700;color:var(--green);margin-top:4px;}
+
+/* HEADER */
+.header-title{font-size:14px;font-weight:900;color:var(--text);flex:1;}
+.header-date{font-size:11px;color:var(--text3);font-family:var(--mono);}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;border:none;cursor:pointer;font-size:11px;font-weight:700;font-family:var(--font);transition:all .15s;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:#6a5fff;}
+.btn-ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--border2);}
+.btn-ghost:hover{background:var(--bg4);color:var(--text);}
+.btn-danger{background:rgba(255,92,92,0.12);color:var(--red);border:1px solid rgba(255,92,92,0.2);}
+
+/* PANELS */
+.panel{display:none;flex-direction:column;gap:20px;animation:fadeIn .2s ease;}
+.panel.active{display:flex;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:20px;}
+.card-title{font-size:12px;font-weight:900;color:var(--text2);letter-spacing:.04em;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.card-sub{font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0;}
+
+/* KPI GRID */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;}
+.kpi{background:linear-gradient(145deg,var(--bg3),var(--bg2));border:1px solid var(--border);border-radius:14px;padding:16px;position:relative;overflow:hidden;transition:transform .15s;}
+.kpi:hover{transform:translateY(-2px);}
+.kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 14px 14px;}
+.kpi[data-c=green]::after{background:var(--green);}
+.kpi[data-c=accent]::after{background:var(--accent);}
+.kpi[data-c=amber]::after{background:var(--amber);}
+.kpi[data-c=red]::after{background:var(--red);}
+.kpi[data-c=purple]::after{background:var(--purple);}
+.kpi[data-c=teal]::after{background:var(--teal);}
+.kpi[data-c=rose]::after{background:var(--rose);}
+.kpi-icon{font-size:16px;margin-bottom:6px;}
+.kpi-val{font-size:22px;font-weight:900;font-family:var(--mono);line-height:1;}
+.kpi[data-c=green] .kpi-val{color:var(--green);}
+.kpi[data-c=accent] .kpi-val{color:var(--accent);}
+.kpi[data-c=amber] .kpi-val{color:var(--amber);}
+.kpi[data-c=red] .kpi-val{color:var(--red);}
+.kpi[data-c=purple] .kpi-val{color:var(--purple);}
+.kpi[data-c=teal] .kpi-val{color:var(--teal);}
+.kpi[data-c=rose] .kpi-val{color:var(--rose);}
+.kpi-lbl{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-top:4px;}
+.kpi-sub{font-size:10px;color:var(--text3);margin-top:2px;}
+.delta{font-size:9px;font-weight:700;padding:1px 6px;border-radius:6px;display:inline-block;}
+.delta.up{background:rgba(63,207,142,0.12);color:var(--green);}
+.delta.down{background:rgba(255,92,92,0.12);color:var(--red);}
+.delta.flat{background:rgba(160,160,184,0.1);color:var(--text3);}
+
+/* TWO COL */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.chart-wrap{position:relative;min-height:200px;}
+
+/* INSIGHTS */
+.insights{display:flex;flex-direction:column;gap:8px;}
+.insight{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);}
+.insight.ok{border-color:rgba(63,207,142,0.2);background:rgba(63,207,142,0.04);}
+.insight.warn{border-color:rgba(245,166,35,0.2);background:rgba(245,166,35,0.04);}
+.insight.crit{border-color:rgba(255,92,92,0.25);background:rgba(255,92,92,0.05);}
+.insight.info{border-color:rgba(124,111,255,0.2);background:rgba(124,111,255,0.04);}
+.insight-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+.insight-title{font-size:11px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.insight-desc{font-size:10px;color:var(--text2);line-height:1.55;}
+
+/* PILLAR BADGES */
+.pillar-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-block;letter-spacing:.05em;}
+.pb-CONTROL{background:rgba(58,80,104,0.3);color:#7aafd4;}
+.pb-INFLUENCE{background:rgba(107,26,26,0.3);color:#e07070;}
+.pb-HUMAN{background:rgba(45,31,74,0.3);color:#b090e0;}
+.pb-POWER{background:rgba(42,32,0,0.3);color:#d4a040;}
+.pb-TRUTH{background:rgba(15,42,15,0.3);color:#60b060;}
+
+/* REEL TABLE */
+.reel-table{width:100%;border-collapse:collapse;font-size:11px;}
+.reel-table th{padding:8px 10px;color:var(--text3);text-align:left;border-bottom:1px solid var(--border);font-weight:700;letter-spacing:.04em;font-size:10px;text-transform:uppercase;}
+.reel-table td{padding:9px 10px;border-bottom:1px solid var(--border);color:var(--text);}
+.reel-table tr:last-child td{border-bottom:none;}
+.reel-table tr:hover td{background:rgba(255,255,255,0.02);}
+.reel-table .num{font-family:var(--mono);font-weight:700;}
+.reel-table .good{color:var(--green);}
+.reel-table .med{color:var(--amber);}
+.reel-table .bad{color:var(--red);}
+
+/* MOMENTUM RING */
+.momentum-wrap{display:flex;align-items:center;gap:24px;}
+.momentum-factors{flex:1;display:flex;flex-direction:column;gap:6px;}
+.mf{display:flex;align-items:center;gap:8px;}
+.mf-lbl{font-size:10px;color:var(--text3);width:200px;flex-shrink:0;}
+.mf-bar{flex:1;height:5px;background:var(--border);border-radius:8px;overflow:hidden;}
+.mf-fill{height:100%;border-radius:8px;transition:width .6s cubic-bezier(.4,0,.2,1);}
+.mf-val{font-size:10px;font-weight:700;color:var(--text2);min-width:30px;text-align:right;font-family:var(--mono);}
+
+/* HEATMAP */
+.heatmap{display:flex;flex-wrap:wrap;gap:4px;}
+.heatmap-cell{width:16px;height:16px;border-radius:3px;cursor:pointer;position:relative;transition:transform .1s;}
+.heatmap-cell:hover{transform:scale(1.3);}
+.heatmap-cell[title]:hover::after{content:attr(title);position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(10,10,20,.97);color:var(--text);font-size:10px;padding:4px 8px;border-radius:6px;white-space:nowrap;z-index:99;font-family:var(--mono);}
+
+/* PASTE MODAL */
+#paste-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);z-index:1000;align-items:center;justify-content:center;}
+#paste-modal.open{display:flex;}
+.modal-box{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:28px;width:620px;max-height:80vh;overflow-y:auto;}
+.modal-title{font-size:16px;font-weight:900;color:var(--text);margin-bottom:6px;}
+.modal-sub{font-size:11px;color:var(--text3);margin-bottom:20px;line-height:1.6;}
+.modal-box textarea{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:14px;color:var(--text);font-family:var(--mono);font-size:11px;resize:vertical;min-height:220px;outline:none;transition:border-color .15s;line-height:1.7;}
+.modal-box textarea:focus{border-color:var(--accent);}
+.modal-actions{display:flex;gap:10px;margin-top:14px;justify-content:flex-end;}
+.parse-preview{margin-top:14px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px;display:none;}
+.parse-preview-title{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;}
+.preview-item{font-size:11px;color:var(--text2);margin-bottom:4px;font-family:var(--mono);}
+.preview-item span{color:var(--accent);}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:60px 20px;color:var(--text3);}
+.empty-icon{font-size:48px;margin-bottom:12px;}
+.empty-title{font-size:15px;font-weight:700;color:var(--text2);margin-bottom:6px;}
+.empty-sub{font-size:12px;line-height:1.6;}
+
+/* PROGRESS BAR */
+.progress-bar{height:6px;background:var(--border);border-radius:8px;overflow:hidden;margin-top:6px;}
+.progress-fill{height:100%;border-radius:8px;transition:width .6s cubic-bezier(.4,0,.2,1);}
+
+/* STREAK */
+.streak-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.streak-dot{width:10px;height:10px;border-radius:2px;}
+
+/* GRADE BADGE */
+.grade{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;font-size:14px;font-weight:900;}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div id="sidebar-logo">
+      <div class="logo-name">🏛️ ARCHON</div>
+      <div class="logo-sub">Analytics Engine</div>
+    </div>
+    <nav id="sidebar-nav">
+      <div class="nav-item active" onclick="switchPanel('dashboard')"><span class="nav-icon">📊</span>Dashboard</div>
+      <div class="nav-item" onclick="switchPanel('reels')"><span class="nav-icon">🎬</span>Reels Intelligence</div>
+      <div class="nav-item" onclick="switchPanel('pillars')"><span class="nav-icon">🏛️</span>Pillar Analytics</div>
+      <div class="nav-item" onclick="switchPanel('growth')"><span class="nav-icon">📈</span>Growth Engine</div>
+      <div class="nav-item" onclick="switchPanel('momentum')"><span class="nav-icon">⚡</span>Momentum Score</div>
+      <div class="nav-item" onclick="switchPanel('tracker')"><span class="nav-icon">📅</span>Posting Tracker</div>
+      <div class="nav-item" onclick="switchPanel('insights')"><span class="nav-icon">💡</span>Insights</div>
+    </nav>
+    <div id="sidebar-bottom">
+      <div class="followers-badge">
+        <div class="fb-num" id="sb-followers">—</div>
+        <div class="fb-lbl">Followers</div>
+        <div class="fb-delta" id="sb-delta">@be.archon</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div id="header">
+      <div class="header-title" id="panel-title">Dashboard</div>
+      <div class="header-date" id="header-date"></div>
+      <button class="btn btn-ghost" onclick="openPasteModal()">📋 Add Data</button>
+      <button class="btn btn-ghost" onclick="clearAllData()" style="color:var(--red)">🗑️ Clear</button>
+    </div>
+    <div id="content">
+      <!-- DASHBOARD -->
+      <div class="panel active" id="panel-dashboard">
+        <div class="kpi-grid" id="dash-kpis"></div>
+        <div class="two-col">
+          <div class="card"><div class="card-title">📈 Follower Growth <span class="card-sub">daily</span></div><div class="chart-wrap"><canvas id="chart-followers"></canvas></div></div>
+          <div class="card"><div class="card-title">👁️ Daily Reach <span class="card-sub">last 14 days</span></div><div class="chart-wrap"><canvas id="chart-reach"></canvas></div></div>
+        </div>
+        <div class="card"><div class="card-title">📅 90-Day Posting Heatmap</div><div class="heatmap" id="heatmap-90"></div></div>
+      </div>
+
+      <!-- REELS -->
+      <div class="panel" id="panel-reels">
+        <div class="kpi-grid" id="reels-kpis"></div>
+        <div class="card"><div class="card-title">🎬 All Reels <span class="card-sub" id="reels-count-label"></span></div><div style="overflow-x:auto"><table class="reel-table" id="reels-table"><thead><tr><th>Date</th><th>Pillar</th><th>Topic</th><th>Plays</th><th>Reach</th><th>Likes</th><th>Saves</th><th>Shares</th><th>ER%</th><th>Save%</th><th>Watch(s)</th><th>Follows</th></tr></thead><tbody id="reels-tbody"></tbody></table></div></div>
+        <div class="two-col">
+          <div class="card"><div class="card-title">🏆 Top 5 by Plays</div><div id="top-plays"></div></div>
+          <div class="card"><div class="card-title">💾 Top 5 by Saves</div><div id="top-saves"></div></div>
+        </div>
+        <div class="card"><div class="card-title">📊 Reach vs Saves <span class="card-sub">per reel</span></div><div class="chart-wrap"><canvas id="chart-scatter"></canvas></div></div>
+      </div>
+
+      <!-- PILLARS -->
+      <div class="panel" id="panel-pillars">
+        <div class="card"><div class="card-title">🏛️ Pillar Comparison Radar</div><div class="chart-wrap" style="height:320px"><canvas id="chart-radar"></canvas></div></div>
+        <div class="three-col" id="pillar-cards"></div>
+        <div class="card"><div class="card-title">📊 Posts Per Pillar <span class="card-sub">consistency tracker</span></div><div class="chart-wrap"><canvas id="chart-pillar-bar"></canvas></div></div>
+      </div>
+
+      <!-- GROWTH -->
+      <div class="panel" id="panel-growth">
+        <div class="kpi-grid" id="growth-kpis"></div>
+        <div class="card"><div class="card-title">📈 Follower Growth + Projection <span class="card-sub">linear regression</span></div><div class="chart-wrap"><canvas id="chart-growth-proj"></canvas></div></div>
+        <div class="card"><div class="card-title">🎯 Milestone Tracker</div><div id="milestones"></div></div>
+        <div class="card"><div class="card-title">📅 Day-of-Week Performance</div><div class="chart-wrap"><canvas id="chart-dow"></canvas></div></div>
+      </div>
+
+      <!-- MOMENTUM -->
+      <div class="panel" id="panel-momentum">
+        <div class="card" id="momentum-card"></div>
+        <div class="two-col">
+          <div class="card"><div class="card-title">📊 Engagement Rate Trend</div><div class="chart-wrap"><canvas id="chart-er-trend"></canvas></div></div>
+          <div class="card"><div class="card-title">💾 Save Rate Trend</div><div class="chart-wrap"><canvas id="chart-save-trend"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- TRACKER -->
+      <div class="panel" id="panel-tracker">
+        <div class="kpi-grid" id="tracker-kpis"></div>
+        <div class="card"><div class="card-title">🔥 Posting Streak</div><div class="streak-row" id="streak-visual"></div></div>
+        <div class="card"><div class="card-title">📅 Weekly Report Cards</div><div id="weekly-reports"></div></div>
+      </div>
+
+      <!-- INSIGHTS -->
+      <div class="panel" id="panel-insights">
+        <div class="card"><div class="card-title">💡 Intelligence Insights <span class="card-sub" id="insights-count"></span></div><div class="insights" id="insights-list"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PASTE MODAL -->
+<div id="paste-modal">
+  <div class="modal-box">
+    <div class="modal-title">📋 Add ARCHON Data</div>
+    <div class="modal-sub">Paste your daily snapshot and/or reel data below.<br>Use the format from the Data Format Guide. Claude extracts this from your screenshots.</div>
+    <textarea id="paste-input" placeholder="DATE: 2026-05-10
+FOLLOWERS: 161
+FOLLOWING: 23
+POSTS_TOTAL: 0
+PROFILE_VIEWS: 0
+REACH_TODAY: 0
+IMPRESSIONS_TODAY: 0
+
+REEL_DATE: 2026-05-10
+REEL_PILLAR: CONTROL
+REEL_TOPIC: The Man Who Needs Nothing
+PLAYS: 1240
+REACH: 892
+LIKES: 67
+COMMENTS: 12
+SHARES: 23
+SAVES: 45
+FOLLOWS_FROM: 3
+IMPRESSIONS: 1240
+AVG_WATCH_TIME: 18
+CAPTION_MODE: 2" oninput="livePreview()"></textarea>
+    <div class="parse-preview" id="parse-preview">
+      <div class="parse-preview-title">✅ Parsed Preview</div>
+      <div id="preview-content"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closePasteModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitData()">💾 Save Data</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════
+   STORAGE
+═══════════════════════════════════════════════ */
+var STORE_KEYS = { snapshots:'archon_snapshots', reels:'archon_reels', settings:'archon_settings' };
+
+function loadStore(k){ try{ var d=localStorage.getItem(k); return d?JSON.parse(d):[]; }catch(e){ return []; } }
+function saveStore(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+
+var snapshots = loadStore(STORE_KEYS.snapshots); // [{date,followers,following,posts_total,profile_views,reach_today,impressions_today}]
+var reels = loadStore(STORE_KEYS.reels); // [{date,pillar,topic,plays,reach,likes,comments,shares,saves,follows_from,impressions,avg_watch_time,caption_mode}]
+
+function saveAll(){ saveStore(STORE_KEYS.snapshots,snapshots); saveStore(STORE_KEYS.reels,reels); }
+
+function clearAllData(){
+  if(!confirm('Clear ALL ARCHON data? This cannot be undone.')) return;
+  snapshots=[]; reels=[];
+  saveAll(); renderAll();
+}
+
+/* ═══════════════════════════════════════════════
+   PARSER
+═══════════════════════════════════════════════ */
+function parseData(raw){
+  var lines = raw.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+  var result = { snapshots:[], reels:[] };
+  var curSnap=null, curReel=null;
+
+  function flushSnap(){ if(curSnap&&curSnap.date){ result.snapshots.push(curSnap); } curSnap=null; }
+  function flushReel(){ if(curReel&&curReel.date){ result.reels.push(curReel); } curReel=null; }
+
+  lines.forEach(function(line){
+    var m = line.match(/^([A-Z_]+):\s*(.+)$/);
+    if(!m) return;
+    var key=m[1].trim(), val=m[2].trim();
+    var num = parseFloat(val);
+
+    if(key==='DATE'){
+      flushSnap(); flushReel();
+      curSnap = {date:val,followers:0,following:0,posts_total:0,profile_views:0,reach_today:0,impressions_today:0};
+    } else if(key==='REEL_DATE'){
+      flushReel();
+      curReel = {date:val,pillar:'',topic:'',plays:0,reach:0,likes:0,comments:0,shares:0,saves:0,follows_from:0,impressions:0,avg_watch_time:0,caption_mode:2};
+    }
+
+    if(curSnap){
+      if(key==='FOLLOWERS') curSnap.followers=num;
+      else if(key==='FOLLOWING') curSnap.following=num;
+      else if(key==='POSTS_TOTAL') curSnap.posts_total=num;
+      else if(key==='PROFILE_VIEWS') curSnap.profile_views=num;
+      else if(key==='REACH_TODAY') curSnap.reach_today=num;
+      else if(key==='IMPRESSIONS_TODAY') curSnap.impressions_today=num;
+    }
+    if(curReel){
+      if(key==='REEL_PILLAR') curReel.pillar=val.toUpperCase();
+      else if(key==='REEL_TOPIC') curReel.topic=val;
+      else if(key==='PLAYS') curReel.plays=num;
+      else if(key==='REACH') curReel.reach=num;
+      else if(key==='LIKES') curReel.likes=num;
+      else if(key==='COMMENTS') curReel.comments=num;
+      else if(key==='SHARES') curReel.shares=num;
+      else if(key==='SAVES') curReel.saves=num;
+      else if(key==='FOLLOWS_FROM') curReel.follows_from=num;
+      else if(key==='IMPRESSIONS') curReel.impressions=num;
+      else if(key==='AVG_WATCH_TIME') curReel.avg_watch_time=num;
+      else if(key==='CAPTION_MODE') curReel.caption_mode=num;
+    }
+  });
+
+  flushSnap(); flushReel();
+  return result;
+}
+
+function livePreview(){
+  var raw = document.getElementById('paste-input').value;
+  if(!raw.trim()){ document.getElementById('parse-preview').style.display='none'; return; }
+  var parsed = parseData(raw);
+  var prev = document.getElementById('parse-preview');
+  var cont = document.getElementById('preview-content');
+  var html = '';
+  parsed.snapshots.forEach(function(s){
+    html += '<div class="preview-item">📅 Snapshot <span>'+s.date+'</span> — Followers: <span>'+s.followers+'</span></div>';
+  });
+  parsed.reels.forEach(function(r){
+    html += '<div class="preview-item">🎬 Reel <span>'+r.date+'</span> [<span>'+r.pillar+'</span>] "'+r.topic+'" — '+r.plays+' plays, '+r.saves+' saves</div>';
+  });
+  if(!html) html = '<div class="preview-item" style="color:var(--red)">⚠️ Nothing parsed — check format</div>';
+  cont.innerHTML = html;
+  prev.style.display = 'block';
+}
+
+function submitData(){
+  var raw = document.getElementById('paste-input').value;
+  if(!raw.trim()){ alert('Nothing to save.'); return; }
+  var parsed = parseData(raw);
+  var added = 0;
+
+  parsed.snapshots.forEach(function(s){
+    var existing = snapshots.findIndex(function(x){ return x.date===s.date; });
+    if(existing>=0) snapshots[existing]=s; else snapshots.push(s);
+    added++;
+  });
+  parsed.reels.forEach(function(r){
+    var existing = reels.findIndex(function(x){ return x.date===r.date&&x.topic===r.topic&&x.pillar===r.pillar; });
+    if(existing>=0) reels[existing]=r; else reels.push(r);
+    added++;
+  });
+
+  snapshots.sort(function(a,b){ return a.date.localeCompare(b.date); });
+  reels.sort(function(a,b){ return a.date.localeCompare(b.date); });
+  saveAll();
+  closePasteModal();
+  document.getElementById('paste-input').value='';
+  document.getElementById('parse-preview').style.display='none';
+  renderAll();
+  alert('✅ Saved '+added+' entries.');
+}
+
+/* ═══════════════════════════════════════════════
+   CALCULATIONS
+═══════════════════════════════════════════════ */
+var PILLARS = ['CONTROL','INFLUENCE','HUMAN','POWER','TRUTH'];
+var PILLAR_COLORS = {CONTROL:'#3a80a0',INFLUENCE:'#c04040',HUMAN:'#8060c0',POWER:'#c0a000',TRUTH:'#40a040'};
+var MW = [0.28,0.16,0.15,0.12,0.10,0.08,0.06,0.05];
+
+function er(r){ return r.reach>0?((r.likes+r.comments+r.saves+r.shares)/r.reach*100):0; }
+function saveRate(r){ return r.reach>0?(r.saves/r.reach*100):0; }
+function shareRate(r){ return r.reach>0?(r.shares/r.reach*100):0; }
+function followRate(r){ return r.reach>0?(r.follows_from/r.reach*100):0; }
+function mean(arr){ return arr.length?arr.reduce(function(a,b){ return a+b; },0)/arr.length:0; }
+function clamp(v,lo,hi){ return Math.min(hi,Math.max(lo,v)); }
+function r(v){ return Math.round(v); }
+
+function calcMomentum(){
+  if(!reels.length) return {score:0,grade:'F',factors:[]};
+  var last14 = reels.slice(-14);
+  var last7  = reels.slice(-7);
+  var prev7  = reels.slice(-14,-7);
+
+  var f1 = clamp(r(mean(last7.map(er))*10),0,100);
+  var days7 = new Set(last7.map(function(r){ return r.date; })).size;
+  var f2 = clamp(r(days7/7*100),0,100);
+  var recentReach = mean(last7.map(function(r){ return r.reach; }));
+  var prevReach   = prev7.length?mean(prev7.map(function(r){ return r.reach; })):recentReach;
+  var f3 = prevReach>0?clamp(r(50+(recentReach-prevReach)/prevReach*50),0,100):50;
+  var f4 = clamp(r(mean(last7.map(saveRate))*20),0,100);
+  var pillarsUsed = new Set(last7.map(function(r){ return r.pillar; })).size;
+  var f5 = clamp(r(pillarsUsed/5*100),0,100);
+  var f6 = clamp(r(mean(last7.map(function(r){ return r.plays>0?(r.avg_watch_time/28*100):50; }))),0,100);
+  var f7 = clamp(r(mean(last7.map(shareRate))*50),0,100);
+  var f8 = clamp(r(mean(last7.map(followRate))*100),0,100);
+
+  var score = clamp(r(MW[0]*f1+MW[1]*f2+MW[2]*f3+MW[3]*f4+MW[4]*f5+MW[5]*f6+MW[6]*f7+MW[7]*f8),0,100);
+  var grade = score>=92?'A+':score>=82?'A':score>=72?'B+':score>=62?'B':score>=50?'C':score>=38?'D':'F';
+
+  return {score:score,grade:grade,factors:[
+    {lbl:'Avg Engagement Rate (×10)',val:f1,color:'#7c6fff',w:'28%'},
+    {lbl:'Posting Consistency (7d)',val:f2,color:'#a78bfa',w:'16%'},
+    {lbl:'Reach Trend Direction',val:f3,color:f3>=55?'#3fcf8e':f3<=45?'#ff5c5c':'#f5a623',w:'15%'},
+    {lbl:'Save Rate (×20)',val:f4,color:'#f5a623',w:'12%'},
+    {lbl:'Pillar Coverage',val:f5,color:'#00d4aa',w:'10%'},
+    {lbl:'Watch Time Score',val:f6,color:'#fb923c',w:'8%'},
+    {lbl:'Share Rate (×50)',val:f7,color:'#f43f5e',w:'6%'},
+    {lbl:'Follower Conversion',val:f8,color:'#38bdf8',w:'5%'}
+  ]};
+}
+
+function pillarStats(pillar){
+  var pr = reels.filter(function(r){ return r.pillar===pillar; });
+  if(!pr.length) return null;
+  return {
+    count:pr.length,
+    avgPlays:r(mean(pr.map(function(r){ return r.plays; }))),
+    avgReach:r(mean(pr.map(function(r){ return r.reach; }))),
+    avgER:mean(pr.map(er)).toFixed(2),
+    avgSaves:r(mean(pr.map(function(r){ return r.saves; }))),
+    avgShares:r(mean(pr.map(function(r){ return r.shares; }))),
+    best:pr.reduce(function(a,b){ return er(a)>er(b)?a:b; }),
+    worst:pr.reduce(function(a,b){ return er(a)<er(b)?a:b; })
+  };
+}
+
+function generateInsights(){
+  var ins=[];
+  if(!reels.length&&!snapshots.length){ return [{type:'info',icon:'📋',title:'No data yet',desc:'Click "Add Data" and paste your daily Instagram metrics to unlock ARCHON Analytics.'}]; }
+
+  var last7 = reels.slice(-7);
+  var prev7 = reels.slice(-14,-7);
+  var latestSnap = snapshots[snapshots.length-1];
+  var prevSnap = snapshots[snapshots.length-2];
+
+  // Follower growth signal
+  if(latestSnap&&prevSnap){
+    var delta = latestSnap.followers - prevSnap.followers;
+    if(delta>10) ins.push({type:'ok',icon:'🚀',title:'Strong follower growth: +'+delta+' from last snapshot',desc:'Gaining followers at this pace. Identify which reels drove this spike and replicate the format.'});
+    else if(delta<0) ins.push({type:'crit',icon:'📉',title:'Follower loss: '+delta+' since last snapshot',desc:'Net negative growth. Analyze what changed — posting frequency, content quality, or audience mismatch.'});
+  }
+
+  // Engagement rate analysis
+  if(last7.length){
+    var avgER7 = mean(last7.map(er));
+    var avgER_prev = prev7.length?mean(prev7.map(er)):avgER7;
+    var erDelta = r(avgER7-avgER_prev);
+    if(avgER7>=5) ins.push({type:'ok',icon:'⚡',title:'Excellent engagement rate: '+avgER7.toFixed(2)+'%',desc:'Above 5% ER is viral territory. ARCHON content is deeply resonating. Double down on this week\'s format.'});
+    else if(avgER7>=2&&avgER7<5) ins.push({type:'info',icon:'📊',title:'Solid engagement: '+avgER7.toFixed(2)+'%',desc:'2-5% ER is healthy. Push saves and shares to break into the 5%+ tier.'});
+    else if(avgER7<2&&last7.length>=3) ins.push({type:'warn',icon:'⚠️',title:'Low engagement: '+avgER7.toFixed(2)+'%',desc:'Below 2% suggests hook or content issue. Test shorter scripts and stronger opening lines.'});
+    if(erDelta>1) ins.push({type:'ok',icon:'📈',title:'Engagement rate improving: +'+erDelta+'% week-over-week',desc:'Upward ER trend = content is getting better. Continue refining scripts using current direction.'});
+    else if(erDelta<-1) ins.push({type:'warn',icon:'📉',title:'Engagement rate declining: '+erDelta+'% week-over-week',desc:'Downward ER trend. Do not change too many variables at once — isolate and fix one element.'});
+  }
+
+  // Pillar coverage
+  var pillarsThisWeek = new Set(last7.map(function(r){ return r.pillar; }));
+  var missingPillars = PILLARS.filter(function(p){ return !pillarsThisWeek.has(p); });
+  if(missingPillars.length>0&&last7.length>=3) ins.push({type:'warn',icon:'🏛️',title:'Pillar rotation incomplete: missing '+missingPillars.join(', '),desc:'Missing pillars reduce audience diversity. Post one '+missingPillars[0]+' reel today to restore the rotation.'});
+  else if(last7.length>=5&&missingPillars.length===0) ins.push({type:'ok',icon:'✅',title:'Perfect pillar rotation this week',desc:'All 5 pillars covered. This maximizes audience reach across different interest segments.'});
+
+  // Save rate signal
+  if(last7.length){
+    var avgSR = mean(last7.map(saveRate));
+    if(avgSR>=5) ins.push({type:'ok',icon:'💾',title:'High save rate: '+avgSR.toFixed(2)+'%',desc:'Above 5% save rate means ARCHON content has extreme value. Saved content gets re-shown by Instagram — this is your growth lever.'});
+    else if(avgSR<2&&last7.length>=3) ins.push({type:'warn',icon:'💾',title:'Low save rate: '+avgSR.toFixed(2)+'%',desc:'Low saves means content is consumed but not valued. Mode 1 (list) captions drive more saves than Mode 2. Try adding the "read caption" hook to next reel.'});
+  }
+
+  // Posting consistency
+  if(snapshots.length>=7){
+    var last7dates = [];
+    var today = new Date(); 
+    for(var i=0;i<7;i++){ var d=new Date(today); d.setDate(d.getDate()-i); last7dates.push(d.toISOString().split('T')[0]); }
+    var posted7 = new Set(reels.filter(function(r){ return last7dates.indexOf(r.date)>=0; }).map(function(r){ return r.date; })).size;
+    if(posted7>=7) ins.push({type:'ok',icon:'🔥',title:'Perfect posting streak: 7+ consecutive days',desc:'7-day streak is ARCHON\'s most important metric. The algorithm rewards consistent accounts heavily.'});
+    else if(posted7<5) ins.push({type:'crit',icon:'🚨',title:'Inconsistent posting: only '+posted7+'/7 days this week',desc:'Posting gaps kill algorithmic momentum. Even 1 reel per day minimum. Batch 3 reels every Sunday to protect your streak.'});
+  }
+
+  // Best performing pillar
+  var pillarERs = PILLARS.map(function(p){ var s=pillarStats(p); return s?{p:p,er:parseFloat(s.avgER)}:null; }).filter(Boolean);
+  if(pillarERs.length>1){
+    pillarERs.sort(function(a,b){ return b.er-a.er; });
+    var best=pillarERs[0], worst=pillarERs[pillarERs.length-1];
+    ins.push({type:'ok',icon:'🏆',title:'Best pillar: '+best.p+' ('+best.er.toFixed(2)+'% avg ER)',desc:best.p+' content performs highest. Ensure it gets posted at least twice per week. Analyze what makes '+best.p+' reels outperform.'});
+    if(worst.er<1&&pillarERs.length>=3) ins.push({type:'warn',icon:'⚠️',title:'Weakest pillar: '+worst.p+' ('+worst.er.toFixed(2)+'% avg ER)',desc:worst.p+' content is underperforming. Either improve script quality for this pillar or temporarily reduce its frequency.'});
+  }
+
+  // Watch time analysis
+  if(last7.length){
+    var avgWT = mean(last7.map(function(r){ return r.avg_watch_time; }));
+    if(avgWT>20) ins.push({type:'ok',icon:'⏱️',title:'Strong watch time: '+r(avgWT)+'s average',desc:'High watch time tells Instagram your content is engaging. The algorithm rewards this with wider distribution.'});
+    else if(avgWT<10&&last7.length>=3) ins.push({type:'warn',icon:'⏱️',title:'Low watch time: '+r(avgWT)+'s average',desc:'Low watch time means people are dropping off fast. Check if hooks are strong enough and if script is paced correctly.'});
+  }
+
+  // Reach trend
+  if(last7.length&&prev7.length){
+    var rR=mean(last7.map(function(r){ return r.reach; })), pR=mean(prev7.map(function(r){ return r.reach; }));
+    var rDelta=pR>0?r((rR-pR)/pR*100):0;
+    if(rDelta>=20) ins.push({type:'ok',icon:'📡',title:'Reach surging: +'+rDelta+'% week-over-week',desc:'Major reach increase signals the algorithm is pushing ARCHON content. Do NOT change what you are doing.'});
+    else if(rDelta<=-20) ins.push({type:'crit',icon:'📡',title:'Reach dropping: '+rDelta+'% week-over-week',desc:'Significant reach decline. Check posting time consistency and content quality. Hashtags may need rotation.'});
+  }
+
+  // Volume signal
+  if(reels.length>0){
+    var totalReels=reels.length, totalPlays=reels.reduce(function(a,r){ return a+r.plays; },0);
+    ins.push({type:'info',icon:'📊',title:'Total content: '+totalReels+' reels · '+totalPlays.toLocaleString()+' plays',desc:'Building the content library. At current pace, reaching 100 reels is the first major credibility milestone.'});
+  }
+
+  return ins;
+}
+
+/* ═══════════════════════════════════════════════
+   CHARTS
+═══════════════════════════════════════════════ */
+var charts={};
+function destroyChart(id){ if(charts[id]){ try{ charts[id].destroy(); }catch(e){} charts[id]=null; } }
+function gc(){ return 'rgba(255,255,255,0.06)'; }
+function tc(){ return '#5a5a7a'; }
+function ff(){ return "'Poppins',sans-serif"; }
+
+function baseOpts(yMax){
+  return {
+    responsive:true,maintainAspectRatio:false,
+    animation:{duration:500,easing:'easeOutQuart'},
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(8,8,15,.97)',borderColor:'rgba(255,255,255,.1)',borderWidth:1,cornerRadius:10,padding:12,titleFont:{size:11,weight:'700',family:ff()},bodyFont:{size:10,family:ff()},titleColor:'#e4e4f0',bodyColor:'#9898b8'}},
+    scales:{
+      x:{grid:{color:gc(),drawBorder:false},ticks:{color:tc(),font:{size:9,family:ff()},maxRotation:0},border:{display:false}},
+      y:{min:0,max:yMax||undefined,grid:{color:gc(),drawBorder:false},ticks:{color:tc(),font:{size:9,family:ff()}},border:{display:false}}
+    }
+  };
+}
+
+function makeGrad(ctx,area,hex){
+  var g=ctx.createLinearGradient(0,area.top,0,area.bottom);
+  g.addColorStop(0,hex+'55'); g.addColorStop(0.6,hex+'18'); g.addColorStop(1,hex+'00');
+  return g;
+}
+
+function drawFollowerChart(){
+  destroyChart('followers');
+  var c=document.getElementById('chart-followers'); if(!c) return;
+  var data=snapshots.slice(-30);
+  if(!data.length){ c.parentNode.innerHTML+=''; return; }
+  charts['followers']=new Chart(c,{type:'line',data:{labels:data.map(function(s){ return s.date.slice(5); }),datasets:[{label:'Followers',data:data.map(function(s){ return s.followers; }),borderColor:'#3fcf8e',backgroundColor:function(ctx){ var ca=ctx.chart.chartArea; return ca?makeGrad(ctx.chart.ctx,ca,'#3fcf8e'):'transparent'; },fill:true,borderWidth:2.5,tension:0.4,pointRadius:3,pointBackgroundColor:'#3fcf8e',spanGaps:true}]},options:baseOpts()});
+}
+
+function drawReachChart(){
+  destroyChart('reach');
+  var c=document.getElementById('chart-reach'); if(!c) return;
+  var data=snapshots.slice(-14);
+  if(!data.length) return;
+  charts['reach']=new Chart(c,{type:'bar',data:{labels:data.map(function(s){ return s.date.slice(5); }),datasets:[{label:'Reach',data:data.map(function(s){ return s.reach_today; }),backgroundColor:'#7c6fff88',borderRadius:8,borderSkipped:false}]},options:baseOpts()});
+}
+
+function drawScatterChart(){
+  destroyChart('scatter');
+  var c=document.getElementById('chart-scatter'); if(!c||!reels.length) return;
+  charts['scatter']=new Chart(c,{type:'scatter',data:{datasets:[{label:'Reels',data:reels.map(function(r){ return {x:r.reach,y:r.saves,label:r.topic}; }),backgroundColor:reels.map(function(r){ return (PILLAR_COLORS[r.pillar]||'#888')+'aa'; }),pointRadius:7,pointHoverRadius:9}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:500},plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){ var d=ctx.raw; return (d.label||'')+ ' — Reach:'+d.x+' Saves:'+d.y; }},backgroundColor:'rgba(8,8,15,.97)',borderColor:'rgba(255,255,255,.1)',borderWidth:1,cornerRadius:10,padding:12,titleFont:{size:11,weight:'700'},bodyFont:{size:10}}},scales:{x:{grid:{color:gc()},ticks:{color:tc(),font:{size:9}},border:{display:false},title:{display:true,text:'Reach',color:tc(),font:{size:10}}},y:{grid:{color:gc()},ticks:{color:tc(),font:{size:9}},border:{display:false},title:{display:true,text:'Saves',color:tc(),font:{size:10}}}}}});
+}
+
+function drawRadarChart(){
+  destroyChart('radar');
+  var c=document.getElementById('chart-radar'); if(!c) return;
+  var stats=PILLARS.map(pillarStats);
+  var hasAny=stats.some(Boolean); if(!hasAny) return;
+  charts['radar']=new Chart(c,{type:'radar',data:{labels:PILLARS,datasets:[
+    {label:'Avg ER%',data:stats.map(function(s){ return s?parseFloat(s.avgER):0; }),backgroundColor:'rgba(124,111,255,0.2)',borderColor:'#7c6fff',borderWidth:2,pointBackgroundColor:PILLARS.map(function(p){ return PILLAR_COLORS[p]; }),pointRadius:5},
+    {label:'Avg Save%',data:stats.map(function(s){ return s?mean(reels.filter(function(r){ return r.pillar===s.best.pillar; }).map(saveRate)):0; }),backgroundColor:'rgba(63,207,142,0.1)',borderColor:'#3fcf8e',borderWidth:2,borderDash:[5,4],pointRadius:3,fill:false}
+  ]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:500},scales:{r:{grid:{color:gc()},angleLines:{color:gc()},pointLabels:{color:tc(),font:{size:10}},ticks:{color:tc(),font:{size:9},stepSize:2,backdropColor:'transparent'}}},plugins:{legend:{display:true,position:'top',labels:{color:tc(),font:{size:10},boxWidth:10}},tooltip:{backgroundColor:'rgba(8,8,15,.97)',borderColor:'rgba(255,255,255,.1)',borderWidth:1,cornerRadius:10,padding:12}}}});
+}
+
+function drawPillarBar(){
+  destroyChart('pillar-bar');
+  var c=document.getElementById('chart-pillar-bar'); if(!c) return;
+  charts['pillar-bar']=new Chart(c,{type:'bar',data:{labels:PILLARS,datasets:[{label:'Reels Posted',data:PILLARS.map(function(p){ return reels.filter(function(r){ return r.pillar===p; }).length; }),backgroundColor:PILLARS.map(function(p){ return PILLAR_COLORS[p]+'cc'; }),borderRadius:10,borderSkipped:false}]},options:baseOpts()});
+}
+
+function drawGrowthProjection(){
+  destroyChart('growth-proj');
+  var c=document.getElementById('chart-growth-proj'); if(!c||snapshots.length<2) return;
+  var data=snapshots.slice(-30);
+  var n=data.length,sx=0,sy=0,sxy=0,sx2=0;
+  for(var i=0;i<n;i++){sx+=i;sy+=data[i].followers;sxy+=i*data[i].followers;sx2+=i*i;}
+  var denom=n*sx2-sx*sx; var slope=denom?((n*sxy-sx*sy)/denom):0;
+  var intercept=(sy-slope*sx)/n;
+  var projLabels=data.map(function(s){ return s.date.slice(5); });
+  var projData=data.map(function(s,i){ return r(intercept+slope*i); });
+  // extend 14 days
+  var lastDate=new Date(data[data.length-1].date);
+  for(var j=1;j<=14;j++){var d=new Date(lastDate);d.setDate(d.getDate()+j);projLabels.push((d.getMonth()+1)+'/'+d.getDate());projData.push(r(intercept+slope*(n-1+j)));}
+  charts['growth-proj']=new Chart(c,{type:'line',data:{labels:projLabels,datasets:[
+    {label:'Actual',data:data.map(function(s){ return s.followers; }).concat(new Array(14).fill(null)),borderColor:'#3fcf8e',backgroundColor:function(ctx){ var ca=ctx.chart.chartArea; return ca?makeGrad(ctx.chart.ctx,ca,'#3fcf8e'):'transparent'; },fill:true,borderWidth:2.5,tension:0.4,pointRadius:3,spanGaps:false},
+    {label:'Projected',data:new Array(data.length).fill(null).concat(projData.slice(data.length)),borderColor:'#7c6fff',backgroundColor:'transparent',borderWidth:2,borderDash:[6,4],tension:0.4,pointRadius:0,spanGaps:false}
+  ]},options:Object.assign({},baseOpts(),{plugins:Object.assign({},baseOpts().plugins,{legend:{display:true,position:'top',labels:{color:tc(),font:{size:10},boxWidth:10}}})})});
+}
+
+function drawDOW(){
+  destroyChart('dow');
+  var c=document.getElementById('chart-dow'); if(!c||!reels.length) return;
+  var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var buckets=[[],[],[],[],[],[],[]];
+  reels.forEach(function(reel){ var d=new Date(reel.date); if(!isNaN(d)) buckets[d.getDay()].push(er(reel)); });
+  var avgs=buckets.map(function(b){ return b.length?mean(b):0; });
+  charts['dow']=new Chart(c,{type:'bar',data:{labels:DOW,datasets:[{label:'Avg ER%',data:avgs,backgroundColor:avgs.map(function(v){ return v>=5?'#3fcf8e88':v>=3?'#7c6fff88':'#ff5c5c88'; }),borderRadius:8,borderSkipped:false}]},options:baseOpts()});
+}
+
+function drawERTrend(){
+  destroyChart('er-trend');
+  var c=document.getElementById('chart-er-trend'); if(!c||!reels.length) return;
+  var data=reels.slice(-20);
+  charts['er-trend']=new Chart(c,{type:'line',data:{labels:data.map(function(r,i){ return '#'+(i+1); }),datasets:[{label:'ER%',data:data.map(er),borderColor:'#7c6fff',backgroundColor:function(ctx){ var ca=ctx.chart.chartArea; return ca?makeGrad(ctx.chart.ctx,ca,'#7c6fff'):'transparent'; },fill:true,borderWidth:2,tension:0.4,pointRadius:3,spanGaps:true}]},options:baseOpts()});
+}
+
+function drawSaveTrend(){
+  destroyChart('save-trend');
+  var c=document.getElementById('chart-save-trend'); if(!c||!reels.length) return;
+  var data=reels.slice(-20);
+  charts['save-trend']=new Chart(c,{type:'line',data:{labels:data.map(function(r,i){ return '#'+(i+1); }),datasets:[{label:'Save%',data:data.map(saveRate),borderColor:'#f5a623',backgroundColor:function(ctx){ var ca=ctx.chart.chartArea; return ca?makeGrad(ctx.chart.ctx,ca,'#f5a623'):'transparent'; },fill:true,borderWidth:2,tension:0.4,pointRadius:3,spanGaps:true}]},options:baseOpts()});
+}
+
+/* ═══════════════════════════════════════════════
+   RENDER FUNCTIONS
+═══════════════════════════════════════════════ */
+function kpiHTML(c,icon,val,lbl,sub,delta){
+  var dHtml=''; if(delta!==undefined&&delta!==null){ var dc=delta>0?'up':delta<0?'down':'flat'; var ds=delta>0?'↑ +':'↓ '; dHtml='<span class="delta '+dc+'">'+(delta!==0?ds:'')+delta+'</span>'; }
+  return '<div class="kpi" data-c="'+c+'"><div class="kpi-icon">'+icon+'</div><div class="kpi-val">'+val+'</div><div class="kpi-lbl">'+lbl+'</div><div class="kpi-sub">'+(sub||'')+dHtml+'</div></div>';
+}
+
+function renderDashboard(){
+  var latest=snapshots[snapshots.length-1], prev=snapshots[snapshots.length-2];
+  var fol=latest?latest.followers:0, folDelta=latest&&prev?latest.followers-prev.followers:null;
+  var avgReach=reels.length?r(mean(reels.slice(-7).map(function(r){ return r.reach; }))):0;
+  var avgER=reels.length?mean(reels.slice(-7).map(er)).toFixed(2):0;
+  var totalReels=reels.length;
+  var streak=calcStreak();
+  var mom=calcMomentum();
+
+  var html='';
+  html+=kpiHTML('green','👥',fol.toLocaleString(),'Followers','@be.archon',folDelta);
+  html+=kpiHTML('accent','🎬',totalReels,'Total Reels','posted so far');
+  html+=kpiHTML('amber','👁️',avgReach.toLocaleString(),'Avg Reach','last 7 reels');
+  html+=kpiHTML('purple','⚡',avgER+'%','Avg ER','last 7 reels');
+  html+=kpiHTML('teal','🔥',streak,'Day Streak','consecutive posting');
+  html+=kpiHTML('rose','📊',mom.score+'/100','Momentum','grade: '+mom.grade);
+  document.getElementById('dash-kpis').innerHTML=html;
+
+  // Sidebar
+  document.getElementById('sb-followers').textContent=fol.toLocaleString();
+  if(folDelta!==null){ var el=document.getElementById('sb-delta'); el.textContent=(folDelta>=0?'↑ +':'')+folDelta+' today'; el.style.color=folDelta>=0?'var(--green)':'var(--red)'; }
+
+  // Heatmap
+  renderHeatmap();
+  setTimeout(function(){ drawFollowerChart(); drawReachChart(); },100);
+}
+
+function calcStreak(){
+  if(!reels.length) return 0;
+  var dates=new Set(reels.map(function(r){ return r.date; }));
+  var cur=0; var d=new Date();
+  while(true){
+    var key=d.toISOString().split('T')[0];
+    if(dates.has(key)){ cur++; d.setDate(d.getDate()-1); }
+    else if(cur===0){ d.setDate(d.getDate()-1); var key2=d.toISOString().split('T')[0]; if(dates.has(key2)){cur++;d.setDate(d.getDate()-1);}else break; }
+    else break;
+    if(cur>365) break;
+  }
+  return cur;
+}
+
+function renderHeatmap(){
+  var hm=document.getElementById('heatmap-90'); if(!hm) return;
+  var dates={}; reels.forEach(function(r){ dates[r.date]=(dates[r.date]||0)+1; });
+  var html=''; var today=new Date();
+  for(var i=89;i>=0;i--){
+    var d=new Date(today); d.setDate(d.getDate()-i);
+    var key=d.toISOString().split('T')[0];
+    var cnt=dates[key]||0;
+    var bg=cnt===0?'var(--bg3)':cnt===1?'rgba(124,111,255,0.4)':cnt===2?'rgba(124,111,255,0.7)':'rgba(124,111,255,1)';
+    html+='<div class="heatmap-cell" style="background:'+bg+'" title="'+key+': '+cnt+' reel(s)"></div>';
+  }
+  hm.innerHTML=html;
+}
+
+function renderReels(){
+  var sortedReels=reels.slice().reverse();
+  document.getElementById('reels-count-label').textContent=reels.length+' reels total';
+  var kpis='';
+  if(reels.length){
+    var best=sortedReels.reduce(function(a,b){ return er(a)>er(b)?a:b; });
+    kpis+=kpiHTML('green','🏆',best.plays.toLocaleString(),'Best Reel Plays',best.topic.slice(0,20));
+    kpis+=kpiHTML('amber','💾',r(mean(reels.map(function(r){ return r.saves; }))).toLocaleString(),'Avg Saves','per reel');
+    kpis+=kpiHTML('accent','👁️',r(mean(reels.map(function(r){ return r.plays; }))).toLocaleString(),'Avg Plays','per reel');
+    kpis+=kpiHTML('purple','📤',r(mean(reels.map(function(r){ return r.shares; }))).toLocaleString(),'Avg Shares','per reel');
+    kpis+=kpiHTML('teal','⏱️',r(mean(reels.map(function(r){ return r.avg_watch_time; })))+'s','Avg Watch Time','per reel');
+    kpis+=kpiHTML('rose','👤',r(mean(reels.map(function(r){ return r.follows_from; }))).toLocaleString(),'Avg Follows','per reel');
+  }
+  document.getElementById('reels-kpis').innerHTML=kpis;
+
+  var tbody='';
+  sortedReels.forEach(function(reel){
+    var e=er(reel).toFixed(2), sr=saveRate(reel).toFixed(2);
+    var ec=parseFloat(e)>=5?'good':parseFloat(e)>=2?'med':'bad';
+    tbody+='<tr>'
+      +'<td class="num">'+reel.date.slice(5)+'</td>'
+      +'<td><span class="pillar-badge pb-'+reel.pillar+'">'+reel.pillar+'</span></td>'
+      +'<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+reel.topic+'">'+reel.topic+'</td>'
+      +'<td class="num">'+reel.plays.toLocaleString()+'</td>'
+      +'<td class="num">'+reel.reach.toLocaleString()+'</td>'
+      +'<td class="num">'+reel.likes+'</td>'
+      +'<td class="num">'+reel.saves+'</td>'
+      +'<td class="num">'+reel.shares+'</td>'
+      +'<td class="num '+ec+'">'+e+'%</td>'
+      +'<td class="num">'+sr+'%</td>'
+      +'<td class="num">'+reel.avg_watch_time+'s</td>'
+      +'<td class="num">'+reel.follows_from+'</td>'
+      +'</tr>';
+  });
+  document.getElementById('reels-tbody').innerHTML=tbody||'<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:30px">No reels yet</td></tr>';
+
+  // Top 5 lists
+  function topList(sorted,id,key,label){
+    var el=document.getElementById(id); if(!el) return;
+    var top=sorted.slice().sort(function(a,b){ return b[key]-a[key]; }).slice(0,5);
+    var html='';
+    top.forEach(function(reel,i){
+      var rankIcon=i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
+      html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:11px">'
+        +'<span style="font-size:14px;width:24px">'+rankIcon+'</span>'
+        +'<span class="pillar-badge pb-'+reel.pillar+'">'+reel.pillar+'</span>'
+        +'<span style="flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+reel.topic+'</span>'
+        +'<span style="font-family:var(--mono);font-weight:700;color:var(--green)">'+reel[key].toLocaleString()+' '+label+'</span>'
+        +'</div>';
+    });
+    el.innerHTML=html||'<div style="color:var(--text3);font-size:12px">No data</div>';
+  }
+  topList(reels,'top-plays','plays','plays');
+  topList(reels,'top-saves','saves','saves');
+  setTimeout(function(){ drawScatterChart(); },100);
+}
+
+function renderPillars(){
+  setTimeout(function(){ drawRadarChart(); drawPillarBar(); },100);
+  var html='';
+  PILLARS.forEach(function(p){
+    var s=pillarStats(p);
+    var col=PILLAR_COLORS[p];
+    html+='<div class="card" style="border-top:3px solid '+col+'">'
+      +'<div style="font-size:11px;font-weight:900;color:var(--text);margin-bottom:12px"><span class="pillar-badge pb-'+p+'">'+p+'</span></div>';
+    if(s){
+      html+='<div style="display:flex;flex-direction:column;gap:6px;font-size:11px">'
+        +'<div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Reels</span><span style="font-family:var(--mono);font-weight:700">'+s.count+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Avg Plays</span><span style="font-family:var(--mono);font-weight:700">'+s.avgPlays.toLocaleString()+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Avg Reach</span><span style="font-family:var(--mono);font-weight:700">'+s.avgReach.toLocaleString()+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Avg ER</span><span style="font-family:var(--mono);font-weight:700;color:'+col+'">'+s.avgER+'%</span></div>'
+        +'<div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Avg Saves</span><span style="font-family:var(--mono);font-weight:700">'+s.avgSaves+'</span></div>'
+        +'</div>';
+      if(s.best) html+='<div style="margin-top:10px;font-size:10px;color:var(--text3)">Best: <span style="color:var(--green)">'+s.best.topic.slice(0,25)+'</span></div>';
+    } else {
+      html+='<div style="color:var(--text3);font-size:11px">No reels yet</div>';
+    }
+    html+='</div>';
+  });
+  document.getElementById('pillar-cards').innerHTML=html;
+}
+
+function renderGrowth(){
+  var latest=snapshots[snapshots.length-1];
+  var fol=latest?latest.followers:0;
+  var MILESTONES=[200,500,1000,5000,10000,50000,100000,500000,1000000];
+  var nextMile=MILESTONES.find(function(m){ return m>fol; })||1000000;
+  var pct=fol?r(fol/nextMile*100):0;
+
+  var kpis='';
+  kpis+=kpiHTML('green','👥',fol.toLocaleString(),'Current Followers','@be.archon');
+  kpis+=kpiHTML('accent','🎯',nextMile.toLocaleString(),'Next Milestone',pct+'% there');
+  kpis+=kpiHTML('amber','📈',snapshots.length,'Days Tracked','snapshots saved');
+  if(snapshots.length>=2){
+    var delta=snapshots[snapshots.length-1].followers-snapshots[0].followers;
+    var days=snapshots.length;
+    var rate=(delta/days).toFixed(1);
+    kpis+=kpiHTML('purple','⚡',rate+'/day','Growth Rate','followers per day');
+    var daysToNext=rate>0?r((nextMile-fol)/rate):9999;
+    kpis+=kpiHTML('teal','⏳',daysToNext>999?'∞':daysToNext+'d','Days to '+nextMile.toLocaleString(),'at current rate');
+  }
+  document.getElementById('growth-kpis').innerHTML=kpis;
+
+  // Milestones
+  var mHTML='';
+  MILESTONES.slice(0,7).forEach(function(m){
+    var done=fol>=m; var p=done?100:r(fol/m*100);
+    var col=done?'var(--green)':'var(--accent)';
+    mHTML+='<div style="padding:10px 0;border-bottom:1px solid var(--border)">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:6px">'
+      +'<span style="font-size:12px;font-weight:700;font-family:var(--mono);color:'+col+'">'+m.toLocaleString()+'</span>'
+      +'<span style="font-size:10px;color:var(--text3)">'+(done?'✅ Achieved':''+p+'%')+'</span></div>'
+      +'<div class="progress-bar"><div class="progress-fill" style="width:'+p+'%;background:'+col+'"></div></div>'
+      +'</div>';
+  });
+  document.getElementById('milestones').innerHTML=mHTML;
+  setTimeout(function(){ drawGrowthProjection(); drawDOW(); },100);
+}
+
+function renderMomentum(){
+  var mom=calcMomentum();
+  var scoreCol=mom.score>=82?'var(--green)':mom.score>=62?'var(--accent)':mom.score>=50?'var(--amber)':'var(--red)';
+  var CIRC=2*Math.PI*40, dash=(mom.score/100)*CIRC;
+  var html='<div class="card-title">⚡ Content Momentum Score <span class="card-sub">8-factor model · weights verified sum 1.00</span></div>';
+  html+='<div class="momentum-wrap">'
+    +'<svg width="120" height="120" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" stroke-width="7"/><circle cx="50" cy="50" r="40" fill="none" stroke="'+scoreCol+'" stroke-width="7" stroke-dasharray="'+dash.toFixed(1)+' '+CIRC.toFixed(1)+'" stroke-linecap="round" transform="rotate(-90 50 50)" style="transition:stroke-dasharray .6s ease"/><text x="50" y="46" text-anchor="middle" dominant-baseline="central" font-size="20" font-weight="900" fill="'+scoreCol+'" font-family="DM Mono,monospace">'+mom.score+'</text><text x="50" y="63" text-anchor="middle" font-size="10" fill="var(--text3)" font-family="Poppins,sans-serif">'+mom.grade+'</text></svg>'
+    +'<div class="momentum-factors">';
+  mom.factors.forEach(function(f){
+    html+='<div class="mf"><span class="mf-lbl">'+f.lbl+' <span style="opacity:.5;font-size:9px">('+f.w+')</span></span>'
+      +'<div class="mf-bar"><div class="mf-fill" style="width:'+f.val+'%;background:'+f.color+'"></div></div>'
+      +'<span class="mf-val">'+f.val+'</span></div>';
+  });
+  html+='</div></div>';
+  if(!reels.length) html+='<div class="empty" style="padding:20px"><div class="empty-sub">Add reel data to calculate momentum score</div></div>';
+  document.getElementById('momentum-card').innerHTML=html;
+  setTimeout(function(){ drawERTrend(); drawSaveTrend(); },100);
+}
+
+function renderTracker(){
+  var streak=calcStreak();
+  var totalDays=new Set(reels.map(function(r){ return r.date; })).size;
+  var target3days=reels.filter(function(r){
+    var cnt=reels.filter(function(r2){ return r2.date===r.date; }).length;
+    return cnt>=3;
+  });
+  var kpis='';
+  kpis+=kpiHTML('green','🔥',streak,'Current Streak','consecutive days');
+  kpis+=kpiHTML('accent','📅',totalDays,'Active Days','days with posts');
+  kpis+=kpiHTML('amber','🎬',reels.length,'Total Reels','all time');
+  kpis+=kpiHTML('purple','📊',reels.length?r(reels.length/Math.max(1,totalDays)*10)/10:0,'Avg Reels/Day','posting rate');
+  document.getElementById('tracker-kpis').innerHTML=kpis;
+
+  // Streak visual (last 30 days)
+  var sHTML=''; var today=new Date(); var dates=new Set(reels.map(function(r){ return r.date; }));
+  for(var i=29;i>=0;i--){ var d=new Date(today); d.setDate(d.getDate()-i); var key=d.toISOString().split('T')[0]; var has=dates.has(key); sHTML+='<div class="streak-dot" style="background:'+(has?'var(--green)':'var(--bg4)')+';border:1px solid '+(has?'var(--green)':'var(--border)')+'" title="'+key+'"></div>'; }
+  document.getElementById('streak-visual').innerHTML=sHTML;
+
+  // Weekly report cards
+  var weeks={};
+  reels.forEach(function(r){
+    var d=new Date(r.date); var mon=new Date(d); mon.setDate(d.getDate()-d.getDay()+1);
+    var wk=mon.toISOString().split('T')[0];
+    if(!weeks[wk]) weeks[wk]={key:wk,reels:[],dates:new Set()};
+    weeks[wk].reels.push(r); weeks[wk].dates.add(r.date);
+  });
+  var wks=Object.values(weeks).sort(function(a,b){ return b.key.localeCompare(a.key); }).slice(0,8);
+  var wHTML='';
+  wks.forEach(function(wk){
+    var avgE=mean(wk.reels.map(er)).toFixed(2);
+    var avgR=r(mean(wk.reels.map(function(r){ return r.reach; })));
+    var days=wk.dates.size;
+    var col=days>=7?'var(--green)':days>=5?'var(--accent)':days>=3?'var(--amber)':'var(--red)';
+    wHTML+='<div style="display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--border);font-size:11px">'
+      +'<div style="font-family:var(--mono);font-size:10px;color:var(--text3);min-width:80px">'+wk.key+'</div>'
+      +'<div style="flex:1"><div style="font-weight:700;color:var(--text)">'+wk.reels.length+' reels · '+days+'/7 days</div>'
+      +'<div style="color:var(--text3);margin-top:2px">Avg ER: <span style="color:var(--accent)">'+avgE+'%</span> · Avg Reach: <span style="color:var(--amber)">'+avgR.toLocaleString()+'</span></div></div>'
+      +'<div style="width:8px;height:8px;border-radius:50%;background:'+col+'"></div>'
+      +'</div>';
+  });
+  document.getElementById('weekly-reports').innerHTML=wHTML||'<div style="color:var(--text3);font-size:12px;text-align:center;padding:20px">No weekly data yet</div>';
+}
+
+function renderInsights(){
+  var ins=generateInsights();
+  document.getElementById('insights-count').textContent=ins.length+' insights generated';
+  var html='';
+  ins.forEach(function(i){
+    html+='<div class="insight '+i.type+'">'
+      +'<div class="insight-icon">'+i.icon+'</div>'
+      +'<div><div class="insight-title">'+i.title+'</div>'
+      +'<div class="insight-desc">'+i.desc+'</div></div></div>';
+  });
+  document.getElementById('insights-list').innerHTML=html;
+}
+
+/* ═══════════════════════════════════════════════
+   PANEL SWITCHING
+═══════════════════════════════════════════════ */
+var PANEL_TITLES={dashboard:'Dashboard',reels:'Reels Intelligence',pillars:'Pillar Analytics',growth:'Growth Engine',momentum:'Momentum Score',tracker:'Posting Tracker',insights:'Insights'};
+function switchPanel(id){
+  document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  var p=document.getElementById('panel-'+id);
+  var n=document.querySelector('[onclick="switchPanel(\''+id+'\')"]');
+  if(p) p.classList.add('active');
+  if(n) n.classList.add('active');
+  document.getElementById('panel-title').textContent=PANEL_TITLES[id]||id;
+  if(id==='dashboard') renderDashboard();
+  else if(id==='reels') renderReels();
+  else if(id==='pillars') renderPillars();
+  else if(id==='growth') renderGrowth();
+  else if(id==='momentum') renderMomentum();
+  else if(id==='tracker') renderTracker();
+  else if(id==='insights') renderInsights();
+}
+
+function renderAll(){ switchPanel('dashboard'); }
+
+/* ═══════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════ */
+function openPasteModal(){ document.getElementById('paste-modal').classList.add('open'); }
+function closePasteModal(){ document.getElementById('paste-modal').classList.remove('open'); }
+document.getElementById('paste-modal').addEventListener('click',function(e){ if(e.target===this) closePasteModal(); });
+
+/* ═══════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════ */
+document.getElementById('header-date').textContent=new Date().toLocaleDateString('en-IN',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+renderAll();
+</script>
+</body>
+</html>
